@@ -564,11 +564,11 @@ function App() {
                       key={idx}
                       style={{
                         backgroundColor: row.is_excluded
-                          ? "rgba(100, 100, 100, 0.1)"
+                          ? "rgba(30, 41, 59, 0.8)" // Much darker, more opaque
                           : !row.processed_patient_id
                             ? "rgba(234, 179, 8, 0.15)"
                             : "transparent",
-                        opacity: row.is_excluded ? 0.5 : 1,
+                        opacity: row.is_excluded ? 0.6 : 1, // Slightly less opacity fade
                       }}
                     >
                       <td style={{ color: "var(--text-secondary)" }}>
