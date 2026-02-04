@@ -88,3 +88,32 @@ The pre-commit hooks will automatically:
 4. Click "Add Mapping Rule".
 5. View the mapped results in the table on the right.
 6. Click "Export CSV" in the header to save your work.
+
+## Deployment
+
+### Automatic Deployment (GitHub Actions)
+
+This project is configured to automatically deploy to GitHub Pages when you push to the `main` branch. The workflow:
+
+1. Builds the application using Bun
+2. Uploads the build artifacts
+3. Deploys to GitHub Pages
+
+**First-time Setup:**
+
+1. Go to your repository settings on GitHub
+2. Navigate to **Pages** (under "Code and automation")
+3. Under "Build and deployment", set **Source** to "GitHub Actions"
+4. Push to the `main` branch to trigger deployment
+
+The app will be available at: `https://bdunnette.github.io/barcode-mapper/`
+
+### Manual Deployment
+
+To manually deploy to GitHub Pages:
+
+```bash
+bun run deploy
+```
+
+This will build the app and push the `dist` folder to the `gh-pages` branch.

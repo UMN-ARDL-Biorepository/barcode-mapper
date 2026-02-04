@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "prepare": "bunx @j178/prek install",
-    "prek": "bunx @j178/prek"
+    "prek": "bunx @j178/prek",
+    "deploy": "bun run build && bunx gh-pages -d dist"
   },
   "dependencies": {
     "lucide-react": "^0.563.0",
