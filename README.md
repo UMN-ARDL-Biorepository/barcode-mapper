@@ -80,6 +80,19 @@ The pre-commit hooks will automatically:
 - 🎨 Format code with Prettier
 - 🔧 Lint JavaScript/React with ESLint
 
+### Dependency Management
+
+This project uses **Dependabot** to automatically check for dependency updates:
+
+- **Schedule**: Weekly on Mondays at 9:00 AM
+- **Grouping**: Updates are grouped into:
+  - Minor and patch updates (combined)
+  - Major updates (separate PR)
+  - GitHub Actions updates (separate PR)
+- **Labels**: PRs are automatically labeled with `dependencies` and `automated`
+
+Dependabot will create pull requests for updates, which you can review and merge. The grouped updates make it easier to manage multiple dependency changes at once.
+
 ## Usage
 
 1. Drag and drop your CSV file into the "Source Data" box.
