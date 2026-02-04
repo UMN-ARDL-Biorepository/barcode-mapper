@@ -107,55 +107,59 @@ function App() {
   const processedData = useMemo(() => {
     if (!data.length || !barcodeCol) return [];
 
-    return data
-      .filter((row) => {
-        // Only filter out rows with no barcode value at all
-        const barcodeVal = row[barcodeCol];
-        return !!barcodeVal;
-      })
-      .map((row) => {
-        const barcodeVal = row[barcodeCol];
-        const upperValue = barcodeVal.toString().toUpperCase().trim();
-        const isExcluded = upperValue === "EMPTY" || upperValue === "ERROR";
+    return (
+      data
+        // Remove filter to let all rows through (we'll handle empty ones as excluded)
+        .map((row) => {
+          const barcodeVal = row[barcodeCol];
+          const valStr = barcodeVal ? barcodeVal.toString() : "";
+          const upperValue = valStr.toUpperCase().trim();
 
-        // Simple numeric comparison if possible, else string comparison
-        // Assuming barcodes might be numeric strings.
-        // We will check if the barcode falls into any range.
-        // NOTE: String comparison for barcodes can be tricky (10 < 2).
-        // We'll try to convert to numbers if both start/end/value are numeric.
+          // Exclude if explicitly "EMPTY"/"ERROR" or if the value is actually empty/blank
+          const isExcluded =
+            upperValue === "EMPTY" ||
+            upperValue === "ERROR" ||
+            upperValue === "";
 
-        let matchedPatientId = null;
+          // Simple numeric comparison if possible, else string comparison
+          // Assuming barcodes might be numeric strings.
+          // We will check if the barcode falls into any range.
+          // NOTE: String comparison for barcodes can be tricky (10 < 2).
+          // We'll try to convert to numbers if both start/end/value are numeric.
 
-        // Don't try to match excluded barcodes
-        if (!isExcluded) {
-          for (const range of ranges) {
-            const isNumeric =
-              !isNaN(range.start) && !isNaN(range.end) && !isNaN(barcodeVal);
+          let matchedPatientId = null;
 
-            if (isNumeric) {
-              const s = parseFloat(range.start);
-              const e = parseFloat(range.end);
-              const v = parseFloat(barcodeVal);
-              if (v >= s && v <= e) {
-                matchedPatientId = range.patientId;
-                break;
-              }
-            } else {
-              // Lexicographical string comparison
-              if (barcodeVal >= range.start && barcodeVal <= range.end) {
-                matchedPatientId = range.patientId;
-                break;
+          // Don't try to match excluded barcodes
+          if (!isExcluded) {
+            for (const range of ranges) {
+              const isNumeric =
+                !isNaN(range.start) && !isNaN(range.end) && !isNaN(barcodeVal);
+
+              if (isNumeric) {
+                const s = parseFloat(range.start);
+                const e = parseFloat(range.end);
+                const v = parseFloat(barcodeVal);
+                if (v >= s && v <= e) {
+                  matchedPatientId = range.patientId;
+                  break;
+                }
+              } else {
+                // Lexicographical string comparison
+                if (barcodeVal >= range.start && barcodeVal <= range.end) {
+                  matchedPatientId = range.patientId;
+                  break;
+                }
               }
             }
           }
-        }
 
-        return {
-          ...row,
-          processed_patient_id: matchedPatientId || "",
-          is_excluded: isExcluded,
-        };
-      });
+          return {
+            ...row,
+            processed_patient_id: matchedPatientId || "",
+            is_excluded: isExcluded,
+          };
+        })
+    );
   }, [data, ranges, barcodeCol]);
 
   // Check if all valid barcodes are mapped
