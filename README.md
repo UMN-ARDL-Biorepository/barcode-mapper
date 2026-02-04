@@ -35,6 +35,51 @@ bun run dev
 
 Open your browser to `http://localhost:5173`.
 
+## Development
+
+### Pre-commit Hooks
+
+This project uses `prek` for pre-commit hooks to ensure code quality. Prek is a fast, Rust-based tool that runs via `bunx` - no separate installation required!
+
+#### Installing Git Hooks
+
+After running `bun install`, the git hooks are automatically installed. To manually install them:
+
+```bash
+bun run prepare
+```
+
+Or directly:
+
+```bash
+bunx @j178/prek install
+```
+
+#### Running Hooks Manually
+
+To run all hooks on all files:
+
+```bash
+bun run prek run --all-files
+```
+
+Or directly:
+
+```bash
+bunx @j178/prek run --all-files
+```
+
+#### What Gets Checked
+
+The pre-commit hooks will automatically:
+
+- ✨ Remove trailing whitespace
+- 📝 Fix end-of-file issues
+- ✅ Validate YAML and JSON files
+- 🔍 Detect large files
+- 🎨 Format code with Prettier
+- 🔧 Lint JavaScript/React with ESLint
+
 ## Usage
 
 1. Drag and drop your CSV file into the "Source Data" box.

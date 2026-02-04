@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "bunx @j178/prek install",
+    "prek": "bunx @j178/prek"
   },
   "dependencies": {
     "lucide-react": "^0.563.0",

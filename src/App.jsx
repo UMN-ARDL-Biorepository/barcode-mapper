@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import Papa from "papaparse";
 import {
   Upload,
@@ -35,7 +35,7 @@ function App() {
       skipEmptyLines: true,
       complete: (results) => {
         setHeaders(results.meta.fields || []);
-        
+
         // Try to auto-detect barcode column
         const probableBarcode = results.meta.fields.find(
           (f) =>
@@ -44,7 +44,7 @@ function App() {
             f.toLowerCase().includes("vial"),
         );
         const detectedBarcodeCol = probableBarcode || results.meta.fields[0];
-        
+
         // Filter out rows where barcode equals "EMPTY" or "ERROR"
         const filteredData = results.data.filter((row) => {
           const barcodeValue = row[detectedBarcodeCol];
@@ -52,7 +52,7 @@ function App() {
           const upperValue = barcodeValue.toString().toUpperCase();
           return upperValue !== "EMPTY" && upperValue !== "ERROR";
         });
-        
+
         setData(filteredData);
         setBarcodeCol(detectedBarcodeCol);
       },
@@ -63,22 +63,22 @@ function App() {
   const addRange = () => {
     if (!currentRange.start || !currentRange.end || !currentRange.patientId)
       return;
-    
+
     // Check for overlaps with existing ranges
     const hasOverlap = ranges.some((existingRange) => {
       // Determine if values are numeric
-      const isNumeric = 
-        !isNaN(currentRange.start) && 
-        !isNaN(currentRange.end) && 
-        !isNaN(existingRange.start) && 
+      const isNumeric =
+        !isNaN(currentRange.start) &&
+        !isNaN(currentRange.end) &&
+        !isNaN(existingRange.start) &&
         !isNaN(existingRange.end);
-      
+
       if (isNumeric) {
         const newStart = parseFloat(currentRange.start);
         const newEnd = parseFloat(currentRange.end);
         const existStart = parseFloat(existingRange.start);
         const existEnd = parseFloat(existingRange.end);
-        
+
         // Check if ranges overlap: (newStart <= existEnd) && (newEnd >= existStart)
         return newStart <= existEnd && newEnd >= existStart;
       } else {
@@ -87,16 +87,18 @@ function App() {
         const newEnd = currentRange.end;
         const existStart = existingRange.start;
         const existEnd = existingRange.end;
-        
+
         return newStart <= existEnd && newEnd >= existStart;
       }
     });
-    
+
     if (hasOverlap) {
-      alert('⚠️ Range Overlap Detected!\n\nThe tube number range you entered overlaps with an existing mapping rule. Please adjust the range to avoid conflicts.');
+      alert(
+        "⚠️ Range Overlap Detected!\n\nThe tube number range you entered overlaps with an existing mapping rule. Please adjust the range to avoid conflicts.",
+      );
       return;
     }
-    
+
     setRanges([...ranges, { ...currentRange, id: Date.now() }]);
     setCurrentRange({ start: "", end: "", patientId: "" });
   };
@@ -119,7 +121,7 @@ function App() {
         const barcodeVal = row[barcodeCol];
         const upperValue = barcodeVal.toString().toUpperCase().trim();
         const isExcluded = upperValue === "EMPTY" || upperValue === "ERROR";
-        
+
         // Simple numeric comparison if possible, else string comparison
         // Assuming barcodes might be numeric strings.
         // We will check if the barcode falls into any range.
@@ -163,12 +165,12 @@ function App() {
   // Check if all valid barcodes are mapped
   const allValidBarcodesAreMapped = useMemo(() => {
     if (!processedData.length) return false;
-    
+
     // Check if there are any valid barcodes without a patient ID
     const hasUnmappedValidBarcodes = processedData.some((row) => {
       const barcodeValue = row[barcodeCol];
       if (!barcodeValue) return false; // Skip empty barcodes
-      
+
       const upperValue = barcodeValue.toString().toUpperCase();
       // If it's a valid barcode (not EMPTY or ERROR) and has no patient ID, it's unmapped
       if (upperValue !== "EMPTY" && upperValue !== "ERROR") {
@@ -176,31 +178,31 @@ function App() {
       }
       return false;
     });
-    
+
     return !hasUnmappedValidBarcodes;
   }, [processedData, barcodeCol]);
 
   // Calculate unmapped ranges
   const unmappedRanges = useMemo(() => {
     if (!processedData.length) return [];
-    
+
     // Get all unmapped tube numbers
     const unmappedNumbers = processedData
-      .filter(row => !row.processed_patient_id)
-      .map(row => {
+      .filter((row) => !row.processed_patient_id)
+      .map((row) => {
         const val = row[barcodeCol];
         return !isNaN(val) ? parseFloat(val) : val;
       })
-      .filter(val => typeof val === 'number')
+      .filter((val) => typeof val === "number")
       .sort((a, b) => a - b);
-    
+
     if (unmappedNumbers.length === 0) return [];
-    
+
     // Group consecutive numbers into ranges
     const ranges = [];
     let rangeStart = unmappedNumbers[0];
     let rangeEnd = unmappedNumbers[0];
-    
+
     for (let i = 1; i < unmappedNumbers.length; i++) {
       if (unmappedNumbers[i] === rangeEnd + 1) {
         rangeEnd = unmappedNumbers[i];
@@ -211,7 +213,7 @@ function App() {
       }
     }
     ranges.push({ start: rangeStart, end: rangeEnd });
-    
+
     return ranges;
   }, [processedData, barcodeCol]);
 
@@ -226,13 +228,14 @@ function App() {
         // Exclude if selected barcode column is "EMPTY" or "ERROR" (case-insensitive)
         const upperValue = barcodeValue.toString().toUpperCase().trim();
         if (upperValue === "EMPTY" || upperValue === "ERROR") return false;
-        
+
         // Also check if there's a separate "Barcode" column and filter those
         if (row.Barcode) {
           const barcodeColValue = row.Barcode.toString().toUpperCase().trim();
-          if (barcodeColValue === "EMPTY" || barcodeColValue === "ERROR") return false;
+          if (barcodeColValue === "EMPTY" || barcodeColValue === "ERROR")
+            return false;
         }
-        
+
         return true;
       })
       .map((row) => {
@@ -269,15 +272,19 @@ function App() {
         <h1>Biospecimen Barcode Mapper</h1>
         <div style={{ marginLeft: "auto" }}>
           {processedData.length > 0 && (
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               onClick={exportCSV}
               disabled={!allValidBarcodesAreMapped}
               style={{
                 opacity: allValidBarcodesAreMapped ? 1 : 0.5,
-                cursor: allValidBarcodesAreMapped ? 'pointer' : 'not-allowed'
+                cursor: allValidBarcodesAreMapped ? "pointer" : "not-allowed",
               }}
-              title={allValidBarcodesAreMapped ? 'Export CSV' : 'All valid barcodes must be mapped to a Patient ID before exporting'}
+              title={
+                allValidBarcodesAreMapped
+                  ? "Export CSV"
+                  : "All valid barcodes must be mapped to a Patient ID before exporting"
+              }
             >
               <FileDown size={18} />
               Export CSV
@@ -312,7 +319,7 @@ function App() {
                     setCurrentRange({ ...currentRange, start: e.target.value })
                   }
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       addRange();
                     }
@@ -329,7 +336,7 @@ function App() {
                     setCurrentRange({ ...currentRange, end: e.target.value })
                   }
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       addRange();
                     }
@@ -349,7 +356,7 @@ function App() {
                   })
                 }
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     addRange();
                   }
@@ -398,34 +405,45 @@ function App() {
             {/* Unmapped Ranges */}
             {unmappedRanges.length > 0 && (
               <div style={{ marginTop: "1.5rem" }}>
-                <h3 style={{ 
-                  fontSize: "0.9rem", 
-                  fontWeight: 600, 
-                  color: "#eab308",
-                  marginBottom: "0.75rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem"
-                }}>
+                <h3
+                  style={{
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                    color: "#eab308",
+                    marginBottom: "0.75rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
                   <AlertCircle size={16} />
                   Unmapped Ranges
                 </h3>
                 <div className="range-list" style={{ marginTop: 0 }}>
                   {unmappedRanges.map((r, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className="range-item"
-                      style={{ 
+                      style={{
                         background: "rgba(234, 179, 8, 0.1)",
-                        borderColor: "rgba(234, 179, 8, 0.3)"
+                        borderColor: "rgba(234, 179, 8, 0.3)",
                       }}
                     >
                       <div className="range-info">
                         <span style={{ color: "#eab308", fontWeight: 600 }}>
-                          {r.start === r.end ? r.start : `${r.start} → ${r.end}`}
+                          {r.start === r.end
+                            ? r.start
+                            : `${r.start} → ${r.end}`}
                         </span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                          {r.start === r.end ? "1 tube" : `${r.end - r.start + 1} tubes`}
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {r.start === r.end
+                            ? "1 tube"
+                            : `${r.end - r.start + 1} tubes`}
                         </span>
                       </div>
                     </div>
@@ -441,30 +459,30 @@ function App() {
               <Upload size={18} className="text-accent" />
               Source Data
             </h2>
-            
-            <div 
+
+            <div
               className="dropzone"
               onDragOver={(e) => {
                 e.preventDefault();
-                e.currentTarget.classList.add('active');
+                e.currentTarget.classList.add("active");
               }}
               onDragLeave={(e) => {
-                e.currentTarget.classList.remove('active');
+                e.currentTarget.classList.remove("active");
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                e.currentTarget.classList.remove('active');
+                e.currentTarget.classList.remove("active");
                 const file = e.dataTransfer.files[0];
-                if (file && file.name.endsWith('.csv')) {
+                if (file && file.name.endsWith(".csv")) {
                   handleFileUpload({ target: { files: [file] } });
                 }
               }}
             >
-              <input 
-                type="file" 
-                accept=".csv" 
-                onChange={handleFileUpload} 
-                style={{ display: "none" }} 
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
                 id="file-upload"
               />
               <label
@@ -537,24 +555,28 @@ function App() {
                 </thead>
                 <tbody>
                   {processedData.map((row, idx) => (
-                    <tr 
+                    <tr
                       key={idx}
                       style={{
-                        backgroundColor: row.is_excluded 
-                          ? 'rgba(100, 100, 100, 0.1)' 
-                          : !row.processed_patient_id 
-                            ? 'rgba(234, 179, 8, 0.15)' 
-                            : 'transparent',
-                        opacity: row.is_excluded ? 0.5 : 1
+                        backgroundColor: row.is_excluded
+                          ? "rgba(100, 100, 100, 0.1)"
+                          : !row.processed_patient_id
+                            ? "rgba(234, 179, 8, 0.15)"
+                            : "transparent",
+                        opacity: row.is_excluded ? 0.5 : 1,
                       }}
                     >
                       <td style={{ color: "var(--text-secondary)" }}>
                         {idx + 1}
                       </td>
-                      <td style={{ 
-                        fontWeight: "600", 
-                        color: row.is_excluded ? "var(--text-secondary)" : "var(--accent)"
-                      }}>
+                      <td
+                        style={{
+                          fontWeight: "600",
+                          color: row.is_excluded
+                            ? "var(--text-secondary)"
+                            : "var(--accent)",
+                        }}
+                      >
                         {row[barcodeCol]}
                       </td>
                       <td>
@@ -584,7 +606,7 @@ function App() {
                               color: "#eab308",
                               fontStyle: "italic",
                               fontSize: "0.8rem",
-                              fontWeight: "600"
+                              fontWeight: "600",
                             }}
                           >
                             Unmapped
