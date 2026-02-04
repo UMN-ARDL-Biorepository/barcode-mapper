@@ -1,5 +1,7 @@
 # Biospecimen Barcode Mapper
 
+[![Deploy to GitHub Pages](https://github.com/bdunnette/barcode-mapper/actions/workflows/deploy.yml/badge.svg)](https://github.com/bdunnette/barcode-mapper/actions/workflows/deploy.yml)
+
 A modern, single-page React application for associating Patient IDs with barcode ranges in biospecimen CSV data.
 
 ## Features
