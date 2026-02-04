@@ -239,7 +239,11 @@ function App() {
         return true;
       })
       .map((row) => {
-        const { processed_patient_id, ...rest } = row;
+        const {
+          processed_patient_id,
+          is_excluded: _is_excluded,
+          ...rest
+        } = row;
         return {
           ...rest,
           "Patient ID": processed_patient_id, // Add/Overwrite Patient ID column
