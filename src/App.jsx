@@ -46,12 +46,8 @@ function App() {
         const detectedBarcodeCol = probableBarcode || results.meta.fields[0];
 
         // Filter out rows where barcode equals "EMPTY" or "ERROR"
-        const filteredData = results.data.filter((row) => {
-          const barcodeValue = row[detectedBarcodeCol];
-          if (!barcodeValue) return true; // Keep rows with no barcode value
-          const upperValue = barcodeValue.toString().toUpperCase();
-          return upperValue !== "EMPTY" && upperValue !== "ERROR";
-        });
+        // Keep all rows, including "EMPTY" or "ERROR" ones (they will be excluded visually later)
+        const filteredData = results.data;
 
         setData(filteredData);
         setBarcodeCol(detectedBarcodeCol);
@@ -239,15 +235,20 @@ function App() {
         return true;
       })
       .map((row) => {
-        const {
-          processed_patient_id,
-          is_excluded: _is_excluded,
-          ...rest
-        } = row;
-        return {
-          ...rest,
-          "Patient ID": processed_patient_id, // Add/Overwrite Patient ID column
-        };
+        // Create a new object excluding internal fields
+        const exportRow = {};
+
+        // Copy all fields except the internal ones
+        Object.keys(row).forEach((key) => {
+          if (key !== "processed_patient_id" && key !== "is_excluded") {
+            exportRow[key] = row[key];
+          }
+        });
+
+        // Add the Patient ID column
+        exportRow["Patient ID"] = row.processed_patient_id || "";
+
+        return exportRow;
       });
 
     const csv = Papa.unparse(exportData);
