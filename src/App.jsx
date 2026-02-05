@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Papa from "papaparse";
+import PouchDB from "pouchdb";
 import {
   Upload,
   FileDown,
@@ -9,13 +10,18 @@ import {
   AlertCircle,
   ScanBarcode,
   User,
+  RotateCcw,
 } from "lucide-react";
+
+// Initialize PouchDB
+const db = new PouchDB("barcode_mapper_db");
 
 function App() {
   const [data, setData] = useState([]);
   const [headers, setHeaders] = useState([]);
   const [fileName, setFileName] = useState("");
   const [barcodeCol, setBarcodeCol] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const [ranges, setRanges] = useState([]);
   const [currentRange, setCurrentRange] = useState({
@@ -23,6 +29,127 @@ function App() {
     end: "",
     patientId: "",
   });
+
+  // Load state from PouchDB on mount
+  useEffect(() => {
+    const loadState = async () => {
+      try {
+        setLoading(true);
+        // Load Config & Ranges
+        try {
+          const configDoc = await db.get("session_config");
+          setRanges(configDoc.ranges || []);
+          setHeaders(configDoc.headers || []);
+          setFileName(configDoc.fileName || "");
+          setBarcodeCol(configDoc.barcodeCol || "");
+        } catch (err) {
+          if (err.status !== 404) console.error("Error loading config:", err);
+        }
+
+        // Load Data
+        try {
+          const dataDoc = await db.get("session_data");
+          setData(dataDoc.data || []);
+        } catch (err) {
+          if (err.status !== 404) console.error("Error loading data:", err);
+        }
+      } catch (err) {
+        console.error("Initialization error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadState();
+  }, []);
+
+  // Save Data Persistence
+  useEffect(() => {
+    if (loading) return; // Don't save empty state during load
+
+    const saveData = async () => {
+      try {
+        // Fetch current doc to get _rev or create new
+        let doc = {};
+        try {
+          doc = await db.get("session_data");
+        } catch (err) {
+          if (err.status !== 404) throw err;
+          doc = { _id: "session_data" };
+        }
+
+        // Only update if changed (basic check or always put with rev)
+        await db.put({
+          ...doc,
+          data: data,
+        });
+      } catch (err) {
+        console.error("Error saving data to PouchDB:", err);
+      }
+    };
+
+    // Debounce save slightly
+    const timeout = setTimeout(saveData, 1000);
+    return () => clearTimeout(timeout);
+  }, [data, loading]);
+
+  // Save Config Persistence
+  useEffect(() => {
+    if (loading) return;
+
+    const saveConfig = async () => {
+      try {
+        let doc = {};
+        try {
+          doc = await db.get("session_config");
+        } catch (err) {
+          if (err.status !== 404) throw err;
+          doc = { _id: "session_config" };
+        }
+
+        await db.put({
+          ...doc,
+          ranges,
+          headers,
+          fileName,
+          barcodeCol,
+        });
+      } catch (err) {
+        console.error("Error saving config:", err);
+      }
+    };
+
+    const timeout = setTimeout(saveConfig, 500);
+    return () => clearTimeout(timeout);
+  }, [ranges, headers, fileName, barcodeCol, loading]);
+
+  const clearSession = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to clear the current session? This will remove all data and mapping rules.",
+      )
+    )
+      return;
+
+    try {
+      // Destroy and recreate DB or just remove docs
+      const configDoc = await db.get("session_config").catch(() => null);
+      if (configDoc) await db.remove(configDoc);
+
+      const dataDoc = await db.get("session_data").catch(() => null);
+      if (dataDoc) await db.remove(dataDoc);
+
+      // Reset State
+      setData([]);
+      setHeaders([]);
+      setFileName("");
+      setBarcodeCol("");
+      setRanges([]);
+    } catch (err) {
+      console.error("Error clearing session:", err);
+      alert("Failed to clear session");
+    }
+  };
 
   // Handle File Upload
   const handleFileUpload = (e) => {
@@ -266,6 +393,17 @@ function App() {
     document.body.removeChild(link);
   };
 
+  if (loading && !data.length) {
+    return (
+      <div
+        className="app-container"
+        style={{ justifyContent: "center", alignItems: "center" }}
+      >
+        <div style={{ color: "var(--text-secondary)" }}>Loading session...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <header>
@@ -279,7 +417,17 @@ function App() {
           <ScanBarcode color="white" size={24} />
         </div>
         <h1>Biospecimen Barcode Mapper</h1>
-        <div style={{ marginLeft: "auto" }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "1rem" }}>
+          {processedData.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              onClick={clearSession}
+              title="Clear current session and reset data"
+            >
+              <RotateCcw size={18} />
+              Reset
+            </button>
+          )}
           {processedData.length > 0 && (
             <button
               className="btn btn-primary"
