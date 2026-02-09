@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -19,7 +19,7 @@ repos:
           - prettier@3.2.5
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.17.0
+    rev: v10.0.0
     hooks:
       - id: eslint
         files: \.(jsx?|tsx?)$
