@@ -16,6 +16,9 @@ function App() {
   const [headers, setHeaders] = useState([]);
   const [fileName, setFileName] = useState("");
   const [barcodeCol, setBarcodeCol] = useState("");
+  const [columnCol, setColumnCol] = useState("");
+  const [rowCol, setRowCol] = useState("");
+  const [mappingMode, setMappingMode] = useState("column"); // "tube" or "column"
 
   const [ranges, setRanges] = useState([]);
   const [currentRange, setCurrentRange] = useState({
@@ -33,24 +36,58 @@ function App() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (header) => header.trim(),
       complete: (results) => {
         setHeaders(results.meta.fields || []);
 
         // Try to auto-detect barcode column
-        const probableBarcode = results.meta.fields.find(
-          (f) =>
-            f.toLowerCase().includes("tubenumber") ||
-            f.toLowerCase().includes("id") ||
-            f.toLowerCase().includes("vial"),
-        );
-        const detectedBarcodeCol = probableBarcode || results.meta.fields[0];
+        const detectedBarcodeCol =
+          results.meta.fields.find((f) => {
+            const low = f.toLowerCase();
+            return low === "tubenumber" || low === "barcode" || low === "vial";
+          }) ||
+          results.meta.fields.find((f) => {
+            const low = f.toLowerCase();
+            return (
+              low.includes("tubenumber") ||
+              low.includes("id") ||
+              low.includes("vial")
+            );
+          }) ||
+          results.meta.fields[0];
 
-        // Filter out rows where barcode equals "EMPTY" or "ERROR"
-        // Keep all rows, including "EMPTY" or "ERROR" ones (they will be excluded visually later)
-        const filteredData = results.data;
+        // Try to auto-detect column column
+        const detectedColumnCol =
+          results.meta.fields.find((f) => {
+            const low = f.trim().toLowerCase();
+            return low === "column" || low === "col";
+          }) ||
+          results.meta.fields.find((f) => {
+            const low = f.toLowerCase();
+            return (
+              low.includes("column") ||
+              low.includes("col") ||
+              low.includes("position")
+            );
+          }) ||
+          results.meta.fields[Math.min(1, results.meta.fields.length - 1)];
 
-        setData(filteredData);
+        // Try to auto-detect row column
+        const detectedRowCol =
+          results.meta.fields.find((f) => {
+            const low = f.trim().toLowerCase();
+            return low === "row" || low === "r";
+          }) ||
+          results.meta.fields.find((f) => {
+            const low = f.toLowerCase();
+            return low.includes("row") || low === "r";
+          }) ||
+          results.meta.fields[Math.min(2, results.meta.fields.length - 1)];
+
+        setData(results.data);
         setBarcodeCol(detectedBarcodeCol);
+        setColumnCol(detectedColumnCol);
+        setRowCol(detectedRowCol);
       },
     });
   };
@@ -60,8 +97,11 @@ function App() {
     if (!currentRange.start || !currentRange.end || !currentRange.patientId)
       return;
 
-    // Check for overlaps with existing ranges
+    // Check for overlaps with existing ranges of the same mode
     const hasOverlap = ranges.some((existingRange) => {
+      // Only check overlap for the same mapping mode
+      if (existingRange.mode !== mappingMode) return false;
+
       // Determine if values are numeric
       const isNumeric =
         !isNaN(currentRange.start) &&
@@ -90,12 +130,15 @@ function App() {
 
     if (hasOverlap) {
       alert(
-        "⚠️ Range Overlap Detected!\n\nThe tube number range you entered overlaps with an existing mapping rule. Please adjust the range to avoid conflicts.",
+        `⚠️ Range Overlap Detected!\n\nThe ${mappingMode === "tube" ? "tube number" : "column"} range you entered overlaps with an existing mapping rule. Please adjust the range to avoid conflicts.`,
       );
       return;
     }
 
-    setRanges([...ranges, { ...currentRange, id: Date.now() }]);
+    setRanges([
+      ...ranges,
+      { ...currentRange, id: Date.now(), mode: mappingMode },
+    ]);
     setCurrentRange({ start: "", end: "", patientId: "" });
   };
 
@@ -107,60 +150,68 @@ function App() {
   const processedData = useMemo(() => {
     if (!data.length || !barcodeCol) return [];
 
-    return (
-      data
-        // Remove filter to let all rows through (we'll handle empty ones as excluded)
-        .map((row) => {
-          const barcodeVal = row[barcodeCol];
-          const valStr = barcodeVal ? barcodeVal.toString() : "";
-          const upperValue = valStr.toUpperCase().trim();
+    return data
+      .map((row) => {
+        const barcodeVal = row[barcodeCol];
+        const valStr = barcodeVal ? barcodeVal.toString() : "";
+        const upperValue = valStr.toUpperCase().trim();
 
-          // Exclude if explicitly "EMPTY"/"ERROR" or if the value is actually empty/blank
-          const isExcluded =
-            upperValue === "EMPTY" ||
-            upperValue === "ERROR" ||
-            upperValue === "";
+        // Exclude if explicitly "EMPTY"/"ERROR" or if the value is actually empty/blank
+        const isExcluded =
+          upperValue === "EMPTY" || upperValue === "ERROR" || upperValue === "";
 
-          // Simple numeric comparison if possible, else string comparison
-          // Assuming barcodes might be numeric strings.
-          // We will check if the barcode falls into any range.
-          // NOTE: String comparison for barcodes can be tricky (10 < 2).
-          // We'll try to convert to numbers if both start/end/value are numeric.
+        let matchedPatientId = null;
 
-          let matchedPatientId = null;
+        // Don't try to match excluded barcodes
+        if (!isExcluded) {
+          for (const range of ranges) {
+            // Use either barcode value or column value based on the range's mode
+            const targetVal =
+              range.mode === "column" ? row[columnCol] : row[barcodeCol];
 
-          // Don't try to match excluded barcodes
-          if (!isExcluded) {
-            for (const range of ranges) {
-              const isNumeric =
-                !isNaN(range.start) && !isNaN(range.end) && !isNaN(barcodeVal);
+            const isNumeric =
+              !isNaN(range.start) && !isNaN(range.end) && !isNaN(targetVal);
 
-              if (isNumeric) {
-                const s = parseFloat(range.start);
-                const e = parseFloat(range.end);
-                const v = parseFloat(barcodeVal);
-                if (v >= s && v <= e) {
-                  matchedPatientId = range.patientId;
-                  break;
-                }
-              } else {
-                // Lexicographical string comparison
-                if (barcodeVal >= range.start && barcodeVal <= range.end) {
-                  matchedPatientId = range.patientId;
-                  break;
-                }
+            if (isNumeric) {
+              const s = parseFloat(range.start);
+              const e = parseFloat(range.end);
+              const v = parseFloat(targetVal);
+              if (v >= s && v <= e) {
+                matchedPatientId = range.patientId;
+                break;
+              }
+            } else {
+              // Lexicographical string comparison
+              if (targetVal >= range.start && targetVal <= range.end) {
+                matchedPatientId = range.patientId;
+                break;
               }
             }
           }
+        }
 
-          return {
-            ...row,
-            processed_patient_id: matchedPatientId || "",
-            is_excluded: isExcluded,
-          };
-        })
-    );
-  }, [data, ranges, barcodeCol]);
+        return {
+          ...row,
+          processed_patient_id: matchedPatientId || "",
+          is_excluded: isExcluded,
+        };
+      })
+      .filter((row) => !row.is_excluded)
+      .sort((a, b) => {
+        if (mappingMode === "column") {
+          // Sort by Column (Number)
+          const colA = parseFloat(a[columnCol]) || 0;
+          const colB = parseFloat(b[columnCol]) || 0;
+          if (colA !== colB) return colA - colB;
+
+          // Then by Row (String: A, B, C...)
+          const rowA = (a[rowCol] || "").toString();
+          const rowB = (b[rowCol] || "").toString();
+          return rowA.localeCompare(rowB);
+        }
+        return 0; // Maintain original order for tube mode
+      });
+  }, [data, ranges, barcodeCol, columnCol, rowCol, mappingMode]);
 
   // Check if all valid barcodes are mapped
   const allValidBarcodesAreMapped = useMemo(() => {
@@ -186,36 +237,40 @@ function App() {
   const unmappedRanges = useMemo(() => {
     if (!processedData.length) return [];
 
-    // Get all unmapped tube numbers
-    const unmappedNumbers = processedData
-      .filter((row) => !row.processed_patient_id)
+    const currentModeCol = mappingMode === "column" ? columnCol : barcodeCol;
+
+    // Get all unmapped values for the current mode
+    const rawUnmapped = processedData
+      .filter((row) => !row.processed_patient_id && !row.is_excluded)
       .map((row) => {
-        const val = row[barcodeCol];
+        const val = row[currentModeCol];
         return !isNaN(val) ? parseFloat(val) : val;
       })
-      .filter((val) => typeof val === "number")
-      .sort((a, b) => a - b);
+      .filter((val) => typeof val === "number");
 
-    if (unmappedNumbers.length === 0) return [];
+    // Ensure values are unique (important when multiple rows share the same column)
+    const unmappedValues = [...new Set(rawUnmapped)].sort((a, b) => a - b);
+
+    if (unmappedValues.length === 0) return [];
 
     // Group consecutive numbers into ranges
     const ranges = [];
-    let rangeStart = unmappedNumbers[0];
-    let rangeEnd = unmappedNumbers[0];
+    let rangeStart = unmappedValues[0];
+    let rangeEnd = unmappedValues[0];
 
-    for (let i = 1; i < unmappedNumbers.length; i++) {
-      if (unmappedNumbers[i] === rangeEnd + 1) {
-        rangeEnd = unmappedNumbers[i];
+    for (let i = 1; i < unmappedValues.length; i++) {
+      if (unmappedValues[i] === rangeEnd + 1) {
+        rangeEnd = unmappedValues[i];
       } else {
         ranges.push({ start: rangeStart, end: rangeEnd });
-        rangeStart = unmappedNumbers[i];
-        rangeEnd = unmappedNumbers[i];
+        rangeStart = unmappedValues[i];
+        rangeEnd = unmappedValues[i];
       }
     }
     ranges.push({ start: rangeStart, end: rangeEnd });
 
     return ranges;
-  }, [processedData, barcodeCol]);
+  }, [processedData, barcodeCol, columnCol, mappingMode]);
 
   // Export
   const exportCSV = () => {
@@ -307,10 +362,55 @@ function App() {
         <aside className="panel-left">
           {/* Range Config Card */}
           <div className="card" style={{ flex: 1 }}>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
               <User size={18} className="text-accent" />
               Patient Mapping
             </h2>
+
+            <div
+              style={{
+                display: "flex",
+                background: "rgba(15, 23, 42, 0.5)",
+                padding: "4px",
+                borderRadius: "8px",
+                marginBottom: "1rem",
+              }}
+            >
+              <button
+                style={{
+                  flex: 1,
+                  padding: "0.5rem",
+                  fontSize: "0.8rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background:
+                    mappingMode === "column" ? "var(--accent)" : "transparent",
+                  color:
+                    mappingMode === "column"
+                      ? "white"
+                      : "var(--text-secondary)",
+                }}
+                onClick={() => setMappingMode("column")}
+              >
+                By Column (1-12)
+              </button>
+              <button
+                style={{
+                  flex: 1,
+                  padding: "0.5rem",
+                  fontSize: "0.8rem",
+                  borderRadius: "6px",
+                  border: "none",
+                  background:
+                    mappingMode === "tube" ? "var(--accent)" : "transparent",
+                  color:
+                    mappingMode === "tube" ? "white" : "var(--text-secondary)",
+                }}
+                onClick={() => setMappingMode("tube")}
+              >
+                By TubeNumber
+              </button>
+            </div>
 
             <div
               style={{
@@ -320,7 +420,9 @@ function App() {
               }}
             >
               <div>
-                <label>Start TubeNumber</label>
+                <label>
+                  Start {mappingMode === "tube" ? "TubeNumber" : "Column"}
+                </label>
                 <input
                   type="number"
                   value={currentRange.start}
@@ -333,11 +435,13 @@ function App() {
                       addRange();
                     }
                   }}
-                  placeholder="e.g. 1001"
+                  placeholder={mappingMode === "tube" ? "e.g. 1001" : "e.g. 1"}
                 />
               </div>
               <div>
-                <label>End TubeNumber</label>
+                <label>
+                  End {mappingMode === "tube" ? "TubeNumber" : "Column"}
+                </label>
                 <input
                   type="number"
                   value={currentRange.end}
@@ -350,7 +454,7 @@ function App() {
                       addRange();
                     }
                   }}
-                  placeholder="e.g. 1050"
+                  placeholder={mappingMode === "tube" ? "e.g. 1050" : "e.g. 12"}
                 />
               </div>
             </div>
@@ -395,7 +499,22 @@ function App() {
               {ranges.map((r) => (
                 <div key={r.id} className="range-item">
                   <div className="range-info">
-                    <span className="range-patient">{r.patientId}</span>
+                    <span className="range-patient">
+                      {r.patientId}{" "}
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "1px 4px",
+                          borderRadius: "4px",
+                          background: "rgba(255,255,255,0.05)",
+                          color: "var(--text-secondary)",
+                          marginLeft: "4px",
+                          verticalAlign: "middle",
+                        }}
+                      >
+                        {r.mode === "column" ? "Col" : "Tube"}
+                      </span>
+                    </span>
                     <span className="range-ids">
                       {r.start} → {r.end}
                     </span>
@@ -426,7 +545,8 @@ function App() {
                   }}
                 >
                   <AlertCircle size={16} />
-                  Unmapped Ranges
+                  Unmapped{" "}
+                  {mappingMode === "tube" ? "Tube Ranges" : "Column Ranges"}
                 </h3>
                 <div className="range-list" style={{ marginTop: 0 }}>
                   {unmappedRanges.map((r, idx) => (
@@ -451,8 +571,8 @@ function App() {
                           }}
                         >
                           {r.start === r.end
-                            ? "1 tube"
-                            : `${r.end - r.start + 1} tubes`}
+                            ? `1 ${mappingMode === "tube" ? "tube" : "column"}`
+                            : `${r.end - r.start + 1} ${mappingMode === "tube" ? "tubes" : "columns"}`}
                         </span>
                       </div>
                     </div>
@@ -518,18 +638,53 @@ function App() {
             </div>
 
             {headers.length > 0 && (
-              <div style={{ marginTop: "1rem" }}>
-                <label>TubeNumber Column</label>
-                <select
-                  value={barcodeCol}
-                  onChange={(e) => setBarcodeCol(e.target.value)}
-                >
-                  {headers.map((h) => (
-                    <option key={h} value={h}>
-                      {h}
-                    </option>
-                  ))}
-                </select>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: "0.75rem",
+                  marginTop: "1rem",
+                }}
+              >
+                <div>
+                  <label>TubeNumber Col</label>
+                  <select
+                    value={barcodeCol}
+                    onChange={(e) => setBarcodeCol(e.target.value)}
+                  >
+                    {headers.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>Plate Column Col</label>
+                  <select
+                    value={columnCol}
+                    onChange={(e) => setColumnCol(e.target.value)}
+                  >
+                    {headers.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>Row Col</label>
+                  <select
+                    value={rowCol}
+                    onChange={(e) => setRowCol(e.target.value)}
+                  >
+                    {headers.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -551,12 +706,17 @@ function App() {
                 <thead>
                   <tr>
                     <th style={{ width: "50px" }}>#</th>
-                    <th>{barcodeCol} (TubeNumber)</th>
+                    <th>{barcodeCol} (Tube)</th>
+                    <th>{columnCol} (Col)</th>
+                    <th>{rowCol} (Row)</th>
                     <th style={{ color: "var(--success)" }}>
                       Mapped Patient ID
                     </th>
                     {headers
-                      .filter((h) => h !== barcodeCol)
+                      .filter(
+                        (h) =>
+                          h !== barcodeCol && h !== columnCol && h !== rowCol,
+                      )
                       .map((h) => (
                         <th key={h}>{h}</th>
                       ))}
@@ -567,12 +727,9 @@ function App() {
                     <tr
                       key={idx}
                       style={{
-                        backgroundColor: row.is_excluded
-                          ? "rgba(30, 41, 59, 0.8)" // Much darker, more opaque
-                          : !row.processed_patient_id
-                            ? "rgba(234, 179, 8, 0.15)"
-                            : "transparent",
-                        opacity: row.is_excluded ? 0.6 : 1, // Slightly less opacity fade
+                        backgroundColor: !row.processed_patient_id
+                          ? "rgba(234, 179, 8, 0.15)"
+                          : "transparent",
                       }}
                     >
                       <td style={{ color: "var(--text-secondary)" }}>
@@ -580,26 +737,35 @@ function App() {
                       </td>
                       <td
                         style={{
-                          fontWeight: "600",
-                          color: row.is_excluded
-                            ? "var(--text-secondary)"
-                            : "var(--accent)",
+                          fontWeight: mappingMode === "tube" ? "600" : "400",
+                          color:
+                            mappingMode === "tube"
+                              ? "var(--accent)"
+                              : "var(--text-secondary)",
                         }}
                       >
                         {row[barcodeCol]}
                       </td>
+                      <td
+                        style={{
+                          fontWeight: mappingMode === "column" ? "600" : "400",
+                          color:
+                            mappingMode === "column"
+                              ? "var(--accent)"
+                              : "var(--text-secondary)",
+                        }}
+                      >
+                        {row[columnCol]}
+                      </td>
+                      <td
+                        style={{
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        {row[rowCol]}
+                      </td>
                       <td>
-                        {row.is_excluded ? (
-                          <span
-                            style={{
-                              color: "var(--text-secondary)",
-                              fontStyle: "italic",
-                              fontSize: "0.8rem",
-                            }}
-                          >
-                            Excluded
-                          </span>
-                        ) : row.processed_patient_id ? (
+                        {row.processed_patient_id ? (
                           <span
                             className="tag"
                             style={{
@@ -623,7 +789,10 @@ function App() {
                         )}
                       </td>
                       {headers
-                        .filter((h) => h !== barcodeCol)
+                        .filter(
+                          (h) =>
+                            h !== barcodeCol && h !== columnCol && h !== rowCol,
+                        )
                         .map((h) => (
                           <td key={h}>{row[h]}</td>
                         ))}
