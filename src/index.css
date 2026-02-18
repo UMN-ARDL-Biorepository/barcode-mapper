@@ -30,8 +30,7 @@
 }
 
 /* Light Theme Overrides */
-[data-theme="light"],
-:root:not([data-theme]):has(body) {
+[data-theme="light"] {
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --bg-color: #f8fafc;

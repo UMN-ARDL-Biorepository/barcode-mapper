@@ -486,7 +486,9 @@ function App() {
                   background:
                     mappingMode === "tube" ? "var(--accent)" : "transparent",
                   color:
-                    mappingMode === "tube" ? "var(--accent-text)" : "var(--text-secondary)",
+                    mappingMode === "tube"
+                      ? "var(--accent-text)"
+                      : "var(--text-secondary)",
                 }}
                 onClick={() => setMappingMode("tube")}
               >
