@@ -25,4 +25,3 @@ dist-ssr
 
 # Pre-commit / prek
 .prek/
-package-lock.json
