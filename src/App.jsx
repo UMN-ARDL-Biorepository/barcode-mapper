@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Papa from "papaparse";
 import {
   Upload,
@@ -9,6 +9,8 @@ import {
   AlertCircle,
   ScanBarcode,
   User,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 function App() {
@@ -26,6 +28,36 @@ function App() {
     end: "",
     patientId: "",
   });
+
+  // Theme management
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  // Listen for system theme changes if no manual setting
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => {
+      if (!localStorage.getItem("theme")) {
+        setTheme(e.matches ? "dark" : "light");
+      }
+    };
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   // Handle File Upload
   const handleFileUpload = (e) => {
@@ -334,7 +366,22 @@ function App() {
           <ScanBarcode color="white" size={24} />
         </div>
         <h1>Biospecimen Barcode Mapper</h1>
-        <div style={{ marginLeft: "auto" }}>
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+          }}
+        >
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
           {processedData.length > 0 && (
             <button
               className="btn btn-primary"
@@ -370,7 +417,7 @@ function App() {
             <div
               style={{
                 display: "flex",
-                background: "rgba(15, 23, 42, 0.5)",
+                background: "var(--input-bg)",
                 padding: "4px",
                 borderRadius: "8px",
                 marginBottom: "1rem",
@@ -506,7 +553,7 @@ function App() {
                           fontSize: "0.65rem",
                           padding: "1px 4px",
                           borderRadius: "4px",
-                          background: "rgba(255,255,255,0.05)",
+                          background: "var(--badge-bg)",
                           color: "var(--text-secondary)",
                           marginLeft: "4px",
                           verticalAlign: "middle",
@@ -537,7 +584,7 @@ function App() {
                   style={{
                     fontSize: "0.9rem",
                     fontWeight: 600,
-                    color: "#eab308",
+                    color: "var(--warning-text)",
                     marginBottom: "0.75rem",
                     display: "flex",
                     alignItems: "center",
@@ -554,12 +601,17 @@ function App() {
                       key={idx}
                       className="range-item"
                       style={{
-                        background: "rgba(234, 179, 8, 0.1)",
-                        borderColor: "rgba(234, 179, 8, 0.3)",
+                        background: "var(--warning-bg)",
+                        borderColor: "var(--warning-border)",
                       }}
                     >
                       <div className="range-info">
-                        <span style={{ color: "#eab308", fontWeight: 600 }}>
+                        <span
+                          style={{
+                            color: "var(--warning-text)",
+                            fontWeight: 600,
+                          }}
+                        >
                           {r.start === r.end
                             ? r.start
                             : `${r.start} → ${r.end}`}
@@ -728,7 +780,7 @@ function App() {
                       key={idx}
                       style={{
                         backgroundColor: !row.processed_patient_id
-                          ? "rgba(234, 179, 8, 0.15)"
+                          ? "var(--warning-bg)"
                           : "transparent",
                       }}
                     >
@@ -770,7 +822,7 @@ function App() {
                             className="tag"
                             style={{
                               background: "rgba(16, 185, 129, 0.15)",
-                              color: "#34d399",
+                              color: "var(--success)",
                             }}
                           >
                             {row.processed_patient_id}
@@ -778,7 +830,7 @@ function App() {
                         ) : (
                           <span
                             style={{
-                              color: "#eab308",
+                              color: "var(--warning-text)",
                               fontStyle: "italic",
                               fontSize: "0.8rem",
                               fontWeight: "600",
