@@ -11,6 +11,7 @@ import {
   User,
   Sun,
   Moon,
+  Monitor,
 } from "lucide-react";
 
 function App() {
@@ -32,31 +33,53 @@ function App() {
   // Theme management
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("theme");
-    if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    if (saved === "light" || saved === "dark" || saved === "system") {
+      return saved;
+    }
+    return "system";
   });
 
+  // Apply theme preference and persist it
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    // Persist the chosen preference ("light", "dark", or "system")
     localStorage.setItem("theme", theme);
+
+    // Determine which theme should actually be applied
+    if (theme === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const appliedTheme = mediaQuery.matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", appliedTheme);
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
   }, [theme]);
 
-  // Listen for system theme changes if no manual setting
+  // Listen for system theme changes when following system preferences
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const applySystemTheme = (matches) => {
+      const appliedTheme = matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", appliedTheme);
+    };
+
     const handleChange = (e) => {
-      if (!localStorage.getItem("theme")) {
-        setTheme(e.matches ? "dark" : "light");
+      if (theme === "system") {
+        applySystemTheme(e.matches);
       }
     };
+
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    // Cycle through: system -> light -> dark -> system
+    setTheme((prev) => {
+      if (prev === "system") return "light";
+      if (prev === "light") return "dark";
+      return "system";
+    });
   };
 
   // Handle File Upload
@@ -363,7 +386,7 @@ function App() {
             borderRadius: "8px",
           }}
         >
-          <ScanBarcode color="white" size={24} />
+          <ScanBarcode color="var(--icon-color)" size={24} />
         </div>
         <h1>Biospecimen Barcode Mapper</h1>
         <div
@@ -377,9 +400,21 @@ function App() {
           <button
             className="theme-toggle"
             onClick={toggleTheme}
-            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            title={
+              theme === "system"
+                ? "Theme: System (click to switch to Light)"
+                : theme === "light"
+                  ? "Theme: Light (click to switch to Dark)"
+                  : "Theme: Dark (click to switch to System)"
+            }
           >
-            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            {theme === "system" ? (
+              <Monitor size={20} />
+            ) : theme === "light" ? (
+              <Sun size={20} />
+            ) : (
+              <Moon size={20} />
+            )}
           </button>
 
           {processedData.length > 0 && (
@@ -434,7 +469,7 @@ function App() {
                     mappingMode === "column" ? "var(--accent)" : "transparent",
                   color:
                     mappingMode === "column"
-                      ? "white"
+                      ? "var(--accent-text)"
                       : "var(--text-secondary)",
                 }}
                 onClick={() => setMappingMode("column")}
@@ -451,7 +486,9 @@ function App() {
                   background:
                     mappingMode === "tube" ? "var(--accent)" : "transparent",
                   color:
-                    mappingMode === "tube" ? "white" : "var(--text-secondary)",
+                    mappingMode === "tube"
+                      ? "var(--accent-text)"
+                      : "var(--text-secondary)",
                 }}
                 onClick={() => setMappingMode("tube")}
               >
@@ -821,7 +858,7 @@ function App() {
                           <span
                             className="tag"
                             style={{
-                              background: "rgba(16, 185, 129, 0.15)",
+                              background: "var(--success-bg)",
                               color: "var(--success)",
                             }}
                           >
