@@ -1,11 +1,13 @@
 :root {
-  --font-family: "Inter", system-ui, -apple-system, sans-serif;
-  --danger: #ef4444;
-  --success: #10b981;
-  
-  /* Default to dark theme */
   --accent: #6366f1;
   --accent-hover: #4f46e5;
+  --danger: #ef4444;
+  --success: #10b981;
+  --font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Dark Theme (Default) */
+[data-theme="dark"] {
   --bg-color: #0f172a;
   --card-bg: rgba(30, 41, 59, 0.7);
   --card-border: rgba(148, 163, 184, 0.1);
@@ -24,15 +26,10 @@
   --warning-bg: rgba(234, 179, 8, 0.1);
   --warning-border: rgba(234, 179, 8, 0.3);
   --warning-text: #eab308;
-  --success-bg: rgba(16, 185, 129, 0.15);
-  --accent-text: #ffffff;
-  --icon-color: #ffffff;
 }
 
-/* Light Theme Overrides */
+/* Light Theme */
 [data-theme="light"] {
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
   --bg-color: #f8fafc;
   --card-bg: rgba(255, 255, 255, 0.8);
   --card-border: rgba(0, 0, 0, 0.1);
@@ -47,19 +44,40 @@
   --range-item-bg: rgba(255, 255, 255, 0.6);
   --gradient-start: rgba(99, 102, 241, 0.1);
   --gradient-end: rgba(139, 92, 246, 0.1);
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
   --badge-bg: rgba(0, 0, 0, 0.05);
   --warning-bg: #fefce8;
   --warning-border: rgba(234, 179, 8, 0.3);
   --warning-text: #854d0e;
-  --success-bg: rgba(16, 185, 129, 0.2);
-  --icon-color: #0f172a;
 }
 
-/* System Preference Fallback - Override defaults if light theme preferred */
+/* System Preference Fallback */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --card-border: rgba(148, 163, 184, 0.1);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --input-bg: rgba(15, 23, 42, 0.5);
+    --btn-secondary-bg: rgba(255, 255, 255, 0.05);
+    --btn-secondary-hover: rgba(255, 255, 255, 0.1);
+    --dropzone-bg: rgba(15, 23, 42, 0.3);
+    --table-header-bg: rgba(15, 23, 42, 0.8);
+    --table-row-hover: rgba(255, 255, 255, 0.02);
+    --range-item-bg: rgba(15, 23, 42, 0.4);
+    --gradient-start: rgba(99, 102, 241, 0.15);
+    --gradient-end: rgba(139, 92, 246, 0.15);
+    --badge-bg: rgba(255, 255, 255, 0.05);
+    --warning-bg: rgba(234, 179, 8, 0.1);
+    --warning-border: rgba(234, 179, 8, 0.3);
+    --warning-text: #eab308;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
     --bg-color: #f8fafc;
     --card-bg: rgba(255, 255, 255, 0.8);
     --card-border: rgba(0, 0, 0, 0.1);
@@ -74,12 +92,12 @@
     --range-item-bg: rgba(255, 255, 255, 0.6);
     --gradient-start: rgba(99, 102, 241, 0.1);
     --gradient-end: rgba(139, 92, 246, 0.1);
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
     --badge-bg: rgba(0, 0, 0, 0.05);
     --warning-bg: #fefce8;
     --warning-border: rgba(234, 179, 8, 0.3);
     --warning-text: #854d0e;
-    --success-bg: rgba(16, 185, 129, 0.2);
-    --icon-color: #0f172a;
   }
 }
 
