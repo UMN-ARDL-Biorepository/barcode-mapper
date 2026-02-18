@@ -5,6 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>barcode-mapper</title>
+    <script>
+      // Prevent FOUC by setting theme before React renders
+      (function() {
+        const saved = localStorage.getItem("theme");
+        let appliedTheme;
+        
+        if (saved === "light" || saved === "dark") {
+          appliedTheme = saved;
+        } else if (saved === "system" || !saved) {
+          // Default to system or use system preference
+          appliedTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        
+        if (appliedTheme) {
+          document.documentElement.setAttribute("data-theme", appliedTheme);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
