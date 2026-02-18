@@ -363,7 +363,7 @@ function App() {
             borderRadius: "8px",
           }}
         >
-          <ScanBarcode color="white" size={24} />
+          <ScanBarcode color="var(--icon-color)" size={24} />
         </div>
         <h1>Biospecimen Barcode Mapper</h1>
         <div
@@ -434,7 +434,7 @@ function App() {
                     mappingMode === "column" ? "var(--accent)" : "transparent",
                   color:
                     mappingMode === "column"
-                      ? "white"
+                      ? "var(--accent-text)"
                       : "var(--text-secondary)",
                 }}
                 onClick={() => setMappingMode("column")}
@@ -451,7 +451,9 @@ function App() {
                   background:
                     mappingMode === "tube" ? "var(--accent)" : "transparent",
                   color:
-                    mappingMode === "tube" ? "white" : "var(--text-secondary)",
+                    mappingMode === "tube"
+                      ? "var(--accent-text)"
+                      : "var(--text-secondary)",
                 }}
                 onClick={() => setMappingMode("tube")}
               >
